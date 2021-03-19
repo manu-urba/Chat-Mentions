@@ -30,8 +30,7 @@
 
 #define TARGET_ERROR_MULTIPLE -7
 
-public Plugin myinfo = 
-{
+public Plugin myinfo = {
 	name = "Chat Mentions", 
 	author = "FrAgOrDiE", 
 	description = "Source plugin which allows player to mention nicknames in the chat", 
@@ -46,8 +45,7 @@ ConVar cvar_bMentionShowAtMultiple;
 
 Handle g_Forward_OnPlayerMentioned;
 
-public void OnPluginStart()
-{
+public void OnPluginStart() {
 	AutoExecConfig_SetFile("Chat-Mentions");
 	cvar_sMentionColor = AutoExecConfig_CreateConVar("sm_chatmentions_color", "{green}", "Color prefix to use for mentioned name in chat", FCVAR_NOTIFY);
 	cvar_sMentionSound = AutoExecConfig_CreateConVar("sm_chatmentions_sound", "Chat-Mentions/mention.wav", "Color prefix to use for mentioned name in chat", FCVAR_NOTIFY);
@@ -57,43 +55,36 @@ public void OnPluginStart()
 	AutoExecConfig_CleanFile();
 }
 
-public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max)
-{
+public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max) {
 	RegPluginLibrary("chat_mentions");
 	g_Forward_OnPlayerMentioned = CreateGlobalForward("Mentions_OnPlayerMentioned", ET_Ignore, Param_Cell);
 }
 
-public void OnMapStart()
-{
+public void OnMapStart() {
 	char sSound[PLATFORM_MAX_PATH];
 	cvar_sMentionSound.GetString(sSound, sizeof(sSound));
 	
-	if (strlen(sSound) > 0)
-	{
+	if (strlen(sSound) > 0) {
 		PrecacheSound(sSound);
 		Format(sSound, sizeof(sSound), "sound/%s", sSound);
 		AddFileToDownloadsTable(sSound);
 	}
 }
 
-public Action CP_OnChatMessage(int & author, ArrayList recipients, char[] flagstring, char[] name, char[] message, bool & processcolors, bool & removecolors)
-{
+public Action CP_OnChatMessage(int & author, ArrayList recipients, char[] flagstring, char[] name, char[] message, bool & processcolors, bool & removecolors) {
 	char sError[256];
 	RegexError hRegexErr;
 	Regex hRegex = new Regex("@(.[^@]*)", PCRE_CASELESS, sError, sizeof(sError), hRegexErr);
 	
-	if (hRegex == null)
-	{
+	if (hRegex == null) {
 		LogError("Regex error(%i): %s", hRegexErr, sError);
 		return Plugin_Continue;
 	}
 	
 	int iMatches = hRegex.MatchAll(message, hRegexErr);
 	
-	if (iMatches <= 0)
-	{
-		if (iMatches == -1)
-			LogError("Regex matching error %i", hRegexErr);
+	if (iMatches <= 0) {
+		if (iMatches == -1) LogError("Regex matching error %i", hRegexErr);
 		
 		delete hRegex;
 		return Plugin_Continue;
@@ -105,8 +96,7 @@ public Action CP_OnChatMessage(int & author, ArrayList recipients, char[] flagst
 	bool tn_is_ml;
 	bool bIsTarget[MAXPLAYERS + 1];
 	
-	for (int i = 0; i < iMatches; ++i)
-	{
+	for (int i = 0; i < iMatches; ++i) {
 		hRegex.GetSubString(0, sSubString, sizeof(sSubString), i);
 		TrimString(sSubString);
 		
@@ -117,25 +107,19 @@ public Action CP_OnChatMessage(int & author, ArrayList recipients, char[] flagst
 		char sTestMultiple[64];
 		Format(sTestMultiple, sizeof(sTestMultiple), "@%s", sPart[0]);
 		int cTarget = ProcessTargetString(sTestMultiple, author, iTarget, sizeof(iTarget), COMMAND_FILTER_CONNECTED | COMMAND_FILTER_NO_IMMUNITY, sTargetName, sizeof(sTargetName), tn_is_ml);
-		if (cTarget <= 0)
-		{
+		if (cTarget <= 0) {
 			cTarget = ProcessTargetString(sSubString, author, iTarget, sizeof(iTarget), COMMAND_FILTER_CONNECTED | COMMAND_FILTER_NO_IMMUNITY, sTargetName, sizeof(sTargetName), tn_is_ml);
-			if (cTarget <= 0)
-			{
+			if (cTarget <= 0) {
 				int iSpace;
-				while ((iSpace = FindCharInString(sSubString, ' ', true)) != -1)
-				{
+				while ((iSpace = FindCharInString(sSubString, ' ', true)) != -1) {
 					sSubString[iSpace] = '\0';
 					cTarget = ProcessTargetString(sSubString, author, iTarget, sizeof(iTarget), COMMAND_FILTER_CONNECTED | COMMAND_FILTER_NO_IMMUNITY, sTargetName, sizeof(sTargetName), tn_is_ml);
-					if (cTarget > 0)
-						break;
+					if (cTarget > 0) break;
 				}
 			}
 			
-			/*if (cTarget <= 0)
-			{
-				if (cTarget == TARGET_ERROR_MULTIPLE)
-					LogMessage("Multiple targets");
+			/*if (cTarget <= 0) {
+				if (cTarget == TARGET_ERROR_MULTIPLE) LogMessage("Multiple targets");
 				continue;
 			}*/
 		}
@@ -143,44 +127,36 @@ public Action CP_OnChatMessage(int & author, ArrayList recipients, char[] flagst
 		char sFind[MAX_NAME_LENGTH + 16], sReplace[MAX_NAME_LENGTH + 16], sColor[32];
 		cvar_sMentionColor.GetString(sColor, sizeof(sColor));
 		Format(sFind, sizeof(sFind), "@%s", sSubString);
-		if (cTarget == 1)
-		{
+		if (cTarget == 1) {
 			char sName[MAX_NAME_LENGTH];
 			GetClientName(iTarget[0], sName, sizeof(sName));
-			if (StrContains(sName, "@") != -1)
-			{
+			if (StrContains(sName, "@") != -1) {
 				delete hRegex;
 				return Plugin_Changed;
 			}
 			strcopy(sTargetName, sizeof(sTargetName), sName);
 			Format(sReplace, sizeof(sReplace), "%s%s%s{default}", sColor, cvar_bMentionShowAtSingle.BoolValue ? "@" : "", sName);
 		}
-		else if (cTarget > 1)
-			Format(sReplace, sizeof(sReplace), "%s%s%s{default} %s", sColor, cvar_bMentionShowAtMultiple.BoolValue ? "@" : "", cvar_bMentionShowAtMultiple.BoolValue ? sPart[0] : sTargetName, sPart[1]);
+		else if (cTarget > 1) Format(sReplace, sizeof(sReplace), "%s%s%s{default} %s", sColor, cvar_bMentionShowAtMultiple.BoolValue ? "@" : "", cvar_bMentionShowAtMultiple.BoolValue ? sPart[0] : sTargetName, sPart[1]);
+		
 		LogMessage("sSubString: %s", sSubString);
 		ReplaceStringEx(message, MAXLENGTH_MESSAGE, sFind, sReplace);
 		
 		Format(message, MAXLENGTH_MESSAGE, "{default}%s", message);
 		
-		for (int ix = 0; ix < sizeof(iTarget); ++ix)
-		{
-			if (iTarget[ix] == 0)
-				break;
-			
-			if (bIsTarget[iTarget[ix]])
-				continue;
+		for (int ix = 0; ix < sizeof(iTarget); ++ix) {
+			if (iTarget[ix] == 0) break;
+			if (bIsTarget[iTarget[ix]]) continue;
 				
 			Call_StartForward(g_Forward_OnPlayerMentioned);
 			Call_PushCell(iTarget[ix]);
 			Call_Finish();
 			
-			if (IsClientInGame(iTarget[ix]) && !IsFakeClient(iTarget[ix]))
-			{
+			if (IsClientInGame(iTarget[ix]) && !IsFakeClient(iTarget[ix])) {
 				static char sSound[PLATFORM_MAX_PATH];
 				cvar_sMentionSound.GetString(sSound, sizeof(sSound));
 				
-				if (strlen(sSound) > 0)
-					EmitSoundToClient(iTarget[ix], sSound);
+				if (strlen(sSound) > 0) EmitSoundToClient(iTarget[ix], sSound);
 			}
 			bIsTarget[iTarget[ix]] = true;
 		}
