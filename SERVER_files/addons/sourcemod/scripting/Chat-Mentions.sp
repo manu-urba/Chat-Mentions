@@ -25,6 +25,7 @@
 #include <chat-processor>
 #include <autoexecconfig>
 #include <sdktools>
+#include <clientprefs>
 
 #pragma semicolon 1
 
@@ -35,26 +36,116 @@ public Plugin myinfo =
 	name = "Chat Mentions", 
 	author = "FrAgOrDiE", 
 	description = "Source plugin which allows player to mention nicknames in the chat", 
-	version = "1.0", 
+	version = "2.0", 
 	url = "https://github.com/manu-urba"
 };
 
 ConVar cvar_sMentionColor;
+ConVar cvar_bMentionSound;
 ConVar cvar_sMentionSound;
 ConVar cvar_bMentionShowAtSingle;
 ConVar cvar_bMentionShowAtMultiple;
 
 Handle g_Forward_OnPlayerMentioned;
+Handle g_hSoundPreference;
+
+bool g_bSoundPreference[MAXPLAYERS + 1];
 
 public void OnPluginStart()
 {
+	LoadTranslations("Chat-Mentions.phrases");
+	
+	RegConsoleCmd("sm_chatmentions", Command_ChatMentions, "Toggle sound when mentioned in chat");
+	RegConsoleCmd("sm_chatmentionssound", Command_ChatMentions, "Toggle sound when mentioned in chat");
+	
 	AutoExecConfig_SetFile("Chat-Mentions");
 	cvar_sMentionColor = AutoExecConfig_CreateConVar("sm_chatmentions_color", "{green}", "Color prefix to use for mentioned name in chat", FCVAR_NOTIFY);
+	cvar_bMentionSound = AutoExecConfig_CreateConVar("sm_chatmentions_sound_enabled", "1", "Enable/Disable sound for all clients", FCVAR_NOTIFY, true, 0.0, true, 1.0);
 	cvar_sMentionSound = AutoExecConfig_CreateConVar("sm_chatmentions_sound", "Chat-Mentions/mention.wav", "Color prefix to use for mentioned name in chat", FCVAR_NOTIFY);
 	cvar_bMentionShowAtSingle = AutoExecConfig_CreateConVar("sm_chatmentions_show_at_on_single_target", "0", "Show \"@\" sign before single player name mention", FCVAR_NOTIFY, true, 0.0, true, 1.0);
 	cvar_bMentionShowAtMultiple = AutoExecConfig_CreateConVar("sm_chatmentions_show_at_on_multiple_target", "1", "Show \"@\" sign before multiple targeting eg. @all, @t, @ct", FCVAR_NOTIFY, true, 0.0, true, 1.0);
 	AutoExecConfig_ExecuteFile();
 	AutoExecConfig_CleanFile();
+	
+	if (cvar_bMentionSound.BoolValue)
+	{
+		g_hSoundPreference = RegClientCookie("chatmentions_sound_enabled", "Enable/Disable sound for single client", CookieAccess_Public);
+		char sDisplay[128];
+		Format(sDisplay, sizeof(sDisplay), "%T", "chat mentions sound setting title", LANG_SERVER);
+		SetCookieMenuItem(CookieMenuHandler_MentionSound, 0, sDisplay);
+	}
+}
+
+public Action Command_ChatMentions(int client, int args)
+{
+	ShowOptionsMenu(client);
+	return Plugin_Handled;
+}
+
+public void OnClientCookiesCached(int client)
+{
+	if (!cvar_bMentionSound.BoolValue)
+		return;
+	
+	char sValue[8];
+	GetClientCookie(client, g_hSoundPreference, sValue, sizeof(sValue));
+	g_bSoundPreference[client] = !StringToInt(sValue);
+}
+
+void ShowOptionsMenu(int client, bool exitBack = false)
+{
+	Menu menu = new Menu(MenuHandler_MentionSoundSetting);
+	menu.ExitBackButton = exitBack;
+	menu.SetTitle("%T", "chat mentions sound setting title", LANG_SERVER);
+	char sText[2][64];
+	Format(sText[0], sizeof(sText[]), "%t", "chat mentions sound setting on text", g_bSoundPreference[client] ? "chat mentions sound setting on" : "chat mentions sound setting off");
+	Format(sText[1], sizeof(sText[]), "%t", "chat mentions sound setting off text", !g_bSoundPreference[client] ? "chat mentions sound setting on" : "chat mentions sound setting off");
+	menu.AddItem("", sText[0]);
+	menu.AddItem("", sText[1]);
+	char sExitBack[6];
+	IntToString(exitBack, sExitBack, sizeof(sExitBack));
+	menu.AddItem(sExitBack, "", ITEMDRAW_IGNORE);
+	menu.Display(client, MENU_TIME_FOREVER);
+}
+
+public int MenuHandler_MentionSoundSetting(Menu menu, MenuAction action, int param1, int param2)
+{
+	switch (action)
+	{
+		case MenuAction_Select:
+		{
+			switch (param2)
+			{
+				case 0:SetClientCookie(param1, g_hSoundPreference, "0");
+				case 1:SetClientCookie(param1, g_hSoundPreference, "1");
+			}
+			
+			char sExitBack[6];
+			menu.GetItem(2, sExitBack, sizeof(sExitBack));
+			
+			OnClientCookiesCached(param1);
+			ShowOptionsMenu(param1, !!StringToInt(sExitBack));
+		}
+		case MenuAction_Cancel:
+		{
+			if (param2 == MenuCancel_ExitBack)
+			{
+				FakeClientCommand(param1, "sm_settings");
+			}
+		}
+		case MenuAction_End:delete menu;
+	}
+}
+
+public void CookieMenuHandler_MentionSound(int client, CookieMenuAction action, any info, char[] buffer, int maxlen)
+{
+	switch (action)
+	{
+		case CookieMenuAction_SelectOption:
+		{
+			ShowOptionsMenu(client, true);
+		}
+	}
 }
 
 public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max)
@@ -157,7 +248,6 @@ public Action CP_OnChatMessage(int & author, ArrayList recipients, char[] flagst
 		}
 		else if (cTarget > 1)
 			Format(sReplace, sizeof(sReplace), "%s%s%s{default} %s", sColor, cvar_bMentionShowAtMultiple.BoolValue ? "@" : "", cvar_bMentionShowAtMultiple.BoolValue ? sPart[0] : sTargetName, sPart[1]);
-		LogMessage("sSubString: %s", sSubString);
 		ReplaceStringEx(message, MAXLENGTH_MESSAGE, sFind, sReplace);
 		
 		Format(message, MAXLENGTH_MESSAGE, "{default}%s", message);
@@ -169,7 +259,7 @@ public Action CP_OnChatMessage(int & author, ArrayList recipients, char[] flagst
 			
 			if (bIsTarget[iTarget[ix]])
 				continue;
-				
+			
 			Call_StartForward(g_Forward_OnPlayerMentioned);
 			Call_PushCell(iTarget[ix]);
 			Call_Finish();
@@ -179,7 +269,7 @@ public Action CP_OnChatMessage(int & author, ArrayList recipients, char[] flagst
 				static char sSound[PLATFORM_MAX_PATH];
 				cvar_sMentionSound.GetString(sSound, sizeof(sSound));
 				
-				if (strlen(sSound) > 0)
+				if (strlen(sSound) > 0 && cvar_bMentionSound.BoolValue && g_bSoundPreference[iTarget[ix]])
 					EmitSoundToClient(iTarget[ix], sSound);
 			}
 			bIsTarget[iTarget[ix]] = true;
