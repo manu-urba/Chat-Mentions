@@ -28,6 +28,13 @@ Multiple targetings are also allowed such as @all, @t, @ct, @dead.
 // Default: "{green}"
 sm_chatmentions_color "{green}"
 
+// Enable/Disable sound for all clients
+// -
+// Default: "1"
+// Minimum: "0.000000"
+// Maximum: "1.000000"
+sm_chatmentions_sound_enabled "1"
+
 // Color prefix to use for mentioned name in chat
 // -
 // Default: "Chat-Mentions/mention.wav"
