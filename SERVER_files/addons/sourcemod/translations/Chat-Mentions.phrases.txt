@@ -1,0 +1,29 @@
+"Phrases"
+{
+	"chat mentions sound setting title"
+	{
+		"en"  "Chat Mentions Sound"  
+	}
+	
+	"chat mentions sound setting on"
+	{
+		"en"  		"◉"  
+	}
+	
+	"chat mentions sound setting off"
+	{
+		"en"  		"◎"  
+	}
+	
+	"chat mentions sound setting on text"
+	{
+		"#format"	"{1:t}"
+		"en"  		"On {1}"  
+	}
+	
+	"chat mentions sound setting off text"
+	{
+		"#format"	"{1:t}"
+		"en"  		"Off {1}"  
+	}
+}
